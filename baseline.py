@@ -3,7 +3,9 @@ from vis_nav_game import Player, Action, Phase
 import pygame
 import cv2
 
+import time
 import numpy as np
+import matplotlib as plt
 import os
 import pickle
 from sklearn.cluster import KMeans
@@ -33,12 +35,25 @@ class KeyboardPlayerPyGame(Player):
         self.codebook = pickle.load(open("codebook.pkl", "rb"))
         # Initialize database for storing VLAD descriptors of FPV
         self.database = []
+        self.coordbook = {}
 
+        self.x = 0
+        self.y = 0
+        self.angle = 0
+
+        self.turning = 0
+        self.orientation = 'N'
+
+        self.save_enable = True
+
+        
     def reset(self):
         # Reset the player state
         self.fpv = None
         self.last_act = Action.IDLE
         self.screen = None
+        self.x = 0
+        self.y = 0
 
         # Initialize pygame
         pygame.init()
@@ -51,6 +66,13 @@ class KeyboardPlayerPyGame(Player):
             pygame.K_DOWN: Action.BACKWARD,
             pygame.K_SPACE: Action.CHECKIN,
             pygame.K_ESCAPE: Action.QUIT
+        }
+
+        self.turningmap = {
+            pygame.K_w: 1,
+            pygame.K_a: 2,
+            pygame.K_s: 3,
+            pygame.K_d: 4
         }
 
     def act(self):
@@ -66,12 +88,25 @@ class KeyboardPlayerPyGame(Player):
             # Check if a key has been pressed
             if event.type == pygame.KEYDOWN:
                 # Check if the pressed key is in the keymap
+                # if event.key == pygame.K_d and self.turning == 0:
+                #     self.turning = 1
+                #     while self.angle != 37:
+                #         self.last_act |= Action.RIGHT
+                #         self.angle += 1
+                #     self.last_act &= Action.IDLE
+                #     self.turing = 0
+                if event.key == pygame.K_p:
+                    self.angle = 0
+                if event.key == pygame.K_r:
+                    self.save_enable = False
+                if event.key == pygame.K_l:
+                    vis_nav_game.play(the_player=KeyboardPlayerPyGame())
                 if event.key in self.keymap:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
                     self.last_act |= self.keymap[event.key]
-                else:
                     # If a key is pressed that is not mapped to an action, then display target images
+                else:
                     self.show_target_images()
             # Check if a key has been released
             if event.type == pygame.KEYUP:
@@ -229,14 +264,14 @@ class KeyboardPlayerPyGame(Player):
             # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
             # TODO: try tuning the function parameters for better performance
-            codebook = KMeans(n_clusters = 64, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+            codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
             pickle.dump(codebook, open("codebook.pkl", "wb"))
 
             # Build a BallTree for fast nearest neighbor search
             # We create this tree to efficiently perform nearest neighbor searches later on which will help us navigate and reach the target location
             
             # TODO: try tuning the leaf size for better performance
-            tree = BallTree(self.database, leaf_size=60)
+            tree = BallTree(self.database, leaf_size=30)
             self.tree = tree
 
             # Get the neighbor nearest to the front view of the target image and set it as goal
@@ -267,6 +302,20 @@ class KeyboardPlayerPyGame(Player):
         self.display_img_from_id(index+5, f'Next Best View')
         # Display the next best view id along with the goal id to understand how close/far we are from the goal
         print(f'Next View ID: {index+5} || Goal ID: {self.goal}')
+
+    def turn(self, dest):
+        if self.angle == dest:
+            self.last_act &= Action.IDLE
+            self.turning = 0
+        elif (self.orientation == 'W' and self.turning == 3):
+            self.angle -= 1
+            self.last_act |= Action.LEFT
+        elif self.angle < dest or (self.orientation == 'S' and self.turning == 2):
+            self.angle += 1
+            self.last_act |= Action.RIGHT
+        elif self.angle > dest:
+            self.angle -= 1
+            self.last_act |= Action.LEFT
 
     def see(self, fpv):
         """
@@ -302,9 +351,69 @@ class KeyboardPlayerPyGame(Player):
         # If game has started
         if self._state:
             # If in exploration stage
+
+            # keys_1 = pygame.key.get_pressed()
+            # if keys_1[pygame.K_d]:
+            #     key_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT)
+            #     pygame.event.post(key_event)
+            
+            
+
+                
+
+
+
             if self._state[1] == Phase.EXPLORATION:
+
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
+                keys_1 = pygame.key.get_pressed()
+                if self.angle > 74:
+                    self.angle -= 148
+                elif self.angle < -74:
+                    self.angle += 148
+                
+                
+                if keys_1[pygame.K_UP]:
+                    match self.orientation:
+                        case 'N': self.y += 1
+                        case 'W': self.x -= 1
+                        case 'S': self.y -= 1
+                        case 'E': self.x += 1
+                    print(f"{self.x}, {self.y}")
+                if keys_1[pygame.K_DOWN]:
+                    match self.orientation:
+                        case 'N': self.y -= 1
+                        case 'W': self.x += 1
+                        case 'S': self.y += 1
+                        case 'E': self.x -= 1
+                    print(f"{self.x}, {self.y}")
+                if keys_1[pygame.K_RIGHT]:
+                    self.angle += 1
+                    print(f"{self.angle}")
+                if keys_1[pygame.K_LEFT]:
+                    self.angle -= 1
+                    print(f"{self.angle}")
+                if self.turning == 0:
+                    if keys_1[pygame.K_w]:
+                        self.turning = 1
+                        self.orientation = 'N'
+                    elif keys_1[pygame.K_a]:
+                        self.turning = 2
+                        self.orientation = 'W'
+                    elif keys_1[pygame.K_s]:
+                        self.turning = 3
+                        self.orientation = 'S'
+                    elif keys_1[pygame.K_d]:
+                        self.turning = 4
+                        self.orientation = 'E'
+                match self.turning:
+                    case 1: self.turn(0)
+                    case 2: self.turn(-37)
+                    case 3: self.turn(74)
+                    case 4: self.turn(37)
+                    
+                
 
                 # Get full absolute save path
                 save_dir_full = os.path.join(os.getcwd(),self.save_dir)
@@ -313,12 +422,16 @@ class KeyboardPlayerPyGame(Player):
                 if not os.path.isdir(save_dir_full):
                     os.mkdir(save_dir_full)
                 # Save current FPV
-                cv2.imwrite(save_path, fpv)
+                if self.save_enable:
+                    cv2.imwrite(save_path, fpv)
 
-                # Get VLAD embedding for current FPV and add it to the database
-                VLAD = self.get_VLAD(self.fpv)
-                self.database.append(VLAD)
-                self.count = self.count + 1
+                    # Get VLAD embedding for current FPV and add it to the database
+                    VLAD = self.get_VLAD(self.fpv)
+                    self.database.append(VLAD)
+                    self.coordbook[self.count] = (self.x, self.y)
+                    self.count = self.count + 1
+
+
             # If in navigation stage
             elif self._state[1] == Phase.NAVIGATION:
                 # TODO: could you do something else, something smarter than simply getting the image closest to the current FPV?
