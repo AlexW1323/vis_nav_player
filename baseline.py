@@ -5,12 +5,18 @@ import cv2
 
 import time
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import os
 import pickle
 from sklearn.cluster import KMeans
 from sklearn.neighbors import BallTree
 
+
+class Marker(pygame.sprite.Sprite):
+    def __init__(self, x = 0, y = 0):
+        self.x = x
+        self.y = y
+    
 
 # Define a class for a player controlled by keyboard input using pygame
 class KeyboardPlayerPyGame(Player):
@@ -45,6 +51,7 @@ class KeyboardPlayerPyGame(Player):
         self.orientation = 'N'
 
         self.save_enable = True
+        self.explore_compute = False
 
         
     def reset(self):
@@ -97,10 +104,16 @@ class KeyboardPlayerPyGame(Player):
                 #     self.turing = 0
                 if event.key == pygame.K_p:
                     self.angle = 0
+                    print("Reset angle to 0")
                 if event.key == pygame.K_r:
                     self.save_enable = False
+                    print("Image saving disabled")
                 if event.key == pygame.K_l:
                     vis_nav_game.play(the_player=KeyboardPlayerPyGame())
+                    print("Created new game instance")
+                if event.key == pygame.K_i:
+                    self.explore_compute = True
+                    print("Explore_compute enabled")
                 if event.key in self.keymap:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
@@ -166,6 +179,15 @@ class KeyboardPlayerPyGame(Player):
         Display image from database based on its ID using OpenCV
         """
         path = self.save_dir + str(id) + ".jpg"
+        img = cv2.imread(path)
+        cv2.imshow(window_name, img)
+        cv2.waitKey(1)
+
+    def display_map(self, window_name):
+        """
+        Display image from database based on its ID using OpenCV
+        """
+        path = 'map.jpg'
         img = cv2.imread(path)
         cv2.imshow(window_name, img)
         cv2.waitKey(1)
@@ -251,33 +273,35 @@ class KeyboardPlayerPyGame(Player):
         if self.count > 0:
             # below 3 code lines to be run only once to generate the codebook
             # Compute sift features for images in the database
-            sift_descriptors = self.compute_sift_features()
+            if not self.explore_compute:
+                sift_descriptors = self.compute_sift_features()
 
-            # KMeans clustering algorithm is used to create a visual vocabulary, also known as a codebook,
-            # from the computed SIFT descriptors.
-            # n_clusters = 64: Specifies the number of clusters (visual words) to be created in the codebook. In this case, 64 clusters are being used.
-            # init='k-means++': This specifies the method for initializing centroids. 'k-means++' is a smart initialization technique that selects initial 
-            # cluster centers in a way that speeds up convergence.
-            # n_init=10: Specifies the number of times the KMeans algorithm will be run with different initial centroid seeds. The final result will be 
-            # the best output of n_init consecutive runs in terms of inertia (sum of squared distances).
-            # The fit() method of KMeans is then called with sift_descriptors as input data. 
-            # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
+                # KMeans clustering algorithm is used to create a visual vocabulary, also known as a codebook,
+                # from the computed SIFT descriptors.
+                # n_clusters = 64: Specifies the number of clusters (visual words) to be created in the codebook. In this case, 64 clusters are being used.
+                # init='k-means++': This specifies the method for initializing centroids. 'k-means++' is a smart initialization technique that selects initial 
+                # cluster centers in a way that speeds up convergence.
+                # n_init=10: Specifies the number of times the KMeans algorithm will be run with different initial centroid seeds. The final result will be 
+                # the best output of n_init consecutive runs in terms of inertia (sum of squared distances).
+                # The fit() method of KMeans is then called with sift_descriptors as input data. 
+                # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
-            # TODO: try tuning the function parameters for better performance
-            codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
-            pickle.dump(codebook, open("codebook.pkl", "wb"))
+                # TODO: try tuning the function parameters for better performance
+                codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                pickle.dump(codebook, open("codebook.pkl", "wb"))
 
-            # Build a BallTree for fast nearest neighbor search
-            # We create this tree to efficiently perform nearest neighbor searches later on which will help us navigate and reach the target location
-            
-            # TODO: try tuning the leaf size for better performance
-            tree = BallTree(self.database, leaf_size=30)
-            self.tree = tree
+                # Build a BallTree for fast nearest neighbor search
+                # We create this tree to efficiently perform nearest neighbor searches later on which will help us navigate and reach the target location
+                
+                # TODO: try tuning the leaf size for better performance
+                tree = BallTree(self.database, leaf_size=30)
+                self.tree = tree
 
             # Get the neighbor nearest to the front view of the target image and set it as goal
             targets = self.get_target_images()
             index = self.get_neighbor(targets[0])
             self.goal = index
+            self.plot_coordinates(self.goal)
             print(f'Goal ID: {self.goal}')
 
     def pre_navigation(self):
@@ -316,6 +340,22 @@ class KeyboardPlayerPyGame(Player):
         elif self.angle > dest:
             self.angle -= 1
             self.last_act |= Action.LEFT
+
+    def plot_coordinates(self, highlight_index=None):
+        fig, ax = plt.subplots()
+        ax.set_aspect('equal')
+        
+        for index, (x, y) in self.coordbook.items():
+            ax.plot(x, y, 'bo', markersize=5)
+            # ax.text(x, y, str(index), fontsize=12, color='black')
+        highlight_coords = self.coordbook[highlight_index]
+        ax.plot(highlight_coords[0], highlight_coords[1], 'ro', markersize=7)
+        
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Indexed Coordinates Plot')
+        plt.grid(True)
+        plt.savefig('map.jpg')
 
     def see(self, fpv):
         """
@@ -413,7 +453,15 @@ class KeyboardPlayerPyGame(Player):
                     case 3: self.turn(74)
                     case 4: self.turn(37)
                     
-                
+                if keys_1[pygame.K_u] and self.explore_compute:
+                    sift_descriptors = self.compute_sift_features()
+
+                    codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                    pickle.dump(codebook, open("codebook.pkl", "wb"))
+
+                    tree = BallTree(self.database, leaf_size=30)
+                    self.tree = tree
+
 
                 # Get full absolute save path
                 save_dir_full = os.path.join(os.getcwd(),self.save_dir)
@@ -441,6 +489,8 @@ class KeyboardPlayerPyGame(Player):
                 # If 'q' key is pressed, then display the next best view based on the current FPV
                 if keys[pygame.K_q]:
                     self.display_next_best_view()
+                    self.display_map('Map')
+                
 
         # Display the first-person view image on the pygame screen
         rgb = convert_opencv_img_to_pygame(fpv)
