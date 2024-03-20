@@ -58,6 +58,7 @@ class KeyboardPlayerPyGame(Player):
         self.every_other = True
 
         self.tolerance = 16
+        self.valid_pixel = True
         
     def reset(self):
         # Reset the player state
@@ -74,7 +75,7 @@ class KeyboardPlayerPyGame(Player):
         self.keymap = {
             pygame.K_LEFT: Action.LEFT,
             pygame.K_RIGHT: Action.RIGHT,
-            pygame.K_UP: Action.FORWARD,
+            # pygame.K_UP: Action.FORWARD,
             pygame.K_DOWN: Action.BACKWARD,
             pygame.K_SPACE: Action.CHECKIN,
             pygame.K_ESCAPE: Action.QUIT
@@ -125,11 +126,16 @@ class KeyboardPlayerPyGame(Player):
                 if event.key == pygame.K_o:
                     self.explore_compute = False
                     print("Explore_compute disabled")
-                if event.key in self.keymap:
+                if event.key in self.keymap and not self.turning:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
                     self.last_act |= self.keymap[event.key]
                     # If a key is pressed that is not mapped to an action, then display target images
+                if event.key == pygame.K_UP and self._state[1] != Phase.NAVIGATION and not self.turning:
+                    if self.valid_pixel:
+                        self.last_act |= Action.FORWARD
+                    else:
+                        self.last_act &= Action.IDLE
                 else:
                     self.show_target_images()
             # Check if a key has been released
@@ -139,6 +145,8 @@ class KeyboardPlayerPyGame(Player):
                     # If yes, bitwise XOR the current action with the new one
                     # This allows for updating the accumulated actions to reflect the current sate of the keyboard inputs accurately
                     self.last_act ^= self.keymap[event.key]
+                if event.key == pygame.K_UP and self._state[1] != Phase.NAVIGATION and not self.turning:
+                    self.last_act &= Action.IDLE
         return self.last_act
 
     def show_target_images(self):
@@ -320,6 +328,7 @@ class KeyboardPlayerPyGame(Player):
         Computations to perform before entering navigation and after exiting exploration
         """
         super(KeyboardPlayerPyGame, self).pre_navigation()
+        self.keymap[pygame.K_UP] = Action.FORWARD
         self.pre_nav_compute()
         
     def display_next_best_view(self):
@@ -443,18 +452,6 @@ class KeyboardPlayerPyGame(Player):
         # If game has started
         if self._state:
             # If in exploration stage
-
-            # keys_1 = pygame.key.get_pressed()
-            # if keys_1[pygame.K_d]:
-            #     key_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT)
-            #     pygame.event.post(key_event)
-            
-            
-
-                
-
-
-
             if self._state[1] == Phase.EXPLORATION:
 
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
@@ -468,23 +465,23 @@ class KeyboardPlayerPyGame(Player):
                     self.angle += 148
                 
                 height, width, _ = fpv.shape
-                bottom_middle_pixel = (width // 2, height - 5)
+                bottom_middle_pixel = (width // 2, height - 20)
                 b, g, r = fpv[bottom_middle_pixel[1], bottom_middle_pixel[0]]
 
-                valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
+                self.valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
 
-                if self.last_act == Action.FORWARD and not valid_pixel:
+                if self.last_act == Action.FORWARD and not self.valid_pixel:
                     self.last_act &= Action.IDLE
 
-                if keys_1[pygame.K_UP]:
-                    if valid_pixel:
+                if keys_1[pygame.K_UP] and not self.turning:
+                    if self.valid_pixel:
                         match self.orientation:
                             case 'N': self.y += 1
                             case 'W': self.x -= 1
                             case 'S': self.y -= 1
                             case 'E': self.x += 1
                     print(f"{self.x}, {self.y}")
-                if keys_1[pygame.K_DOWN]:
+                if keys_1[pygame.K_DOWN] and not self.turning:
                     match self.orientation:
                         case 'N': self.y -= 1
                         case 'W': self.x += 1
