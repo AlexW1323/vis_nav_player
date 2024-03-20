@@ -10,6 +10,8 @@ import os
 import pickle
 from sklearn.cluster import KMeans
 from sklearn.neighbors import BallTree
+import math
+import heapq
 
 
 class Marker(pygame.sprite.Sprite):
@@ -287,7 +289,7 @@ class KeyboardPlayerPyGame(Player):
                 # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
                 # TODO: try tuning the function parameters for better performance
-                codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                codebook = KMeans(n_clusters = 5, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
                 pickle.dump(codebook, open("codebook.pkl", "wb"))
 
                 # Build a BallTree for fast nearest neighbor search
@@ -341,12 +343,53 @@ class KeyboardPlayerPyGame(Player):
             self.angle -= 1
             self.last_act |= Action.LEFT
 
+    def shortest_path(self, points, start, end, jump_threshold):
+        def euclidean_distance(p1, p2):
+            return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+        # Initialize the priority queue with the start point
+        queue = [(0, start)]
+        visited = set()
+        distances = {point: float('inf') for point in points}
+        distances[start] = 0
+
+        # Store the predecessor of each point
+        predecessors = {point: None for point in points}
+
+        while queue:
+            # Get the point with the smallest distance
+            current_distance, current_point = heapq.heappop(queue)
+            visited.add(current_point)
+
+            if current_point == end:
+                # Backtrack from the end to the start to get the path
+                path = []
+                while current_point is not None:
+                    path.append(current_point)
+                    current_point = predecessors[current_point]
+                path.reverse()
+                return distances[end], path
+
+            for point in points:
+                if point not in visited and euclidean_distance(current_point, point) <= jump_threshold:
+                    distance = current_distance + euclidean_distance(current_point, point)
+                    if distance < distances[point]:
+                        distances[point] = distance
+                        predecessors[point] = current_point
+                        heapq.heappush(queue, (distance, point))
+
+        return distances[end], []
+
+
     def plot_coordinates(self, highlight_index=None):
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        
+        distance, path = self.shortest_path(list(self.coordbook.values()), (0, 0), \
+                                  self.coordbook[highlight_index], 3)
+        print(path)
         for index, (x, y) in self.coordbook.items():
-            ax.plot(x, y, 'bo', markersize=5)
+            color = 'bo' if (x, y) in path else 'gs'
+            ax.plot(x, y, color, markersize=5)
             # ax.text(x, y, str(index), fontsize=12, color='black')
         highlight_coords = self.coordbook[highlight_index]
         ax.plot(highlight_coords[0], highlight_coords[1], 'ro', markersize=7)
@@ -459,7 +502,7 @@ class KeyboardPlayerPyGame(Player):
                     codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
                     pickle.dump(codebook, open("codebook.pkl", "wb"))
 
-                    tree = BallTree(self.database, leaf_size=30)
+                    tree = BallTree(self.database, leaf_size=10)
                     self.tree = tree
 
 
