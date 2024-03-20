@@ -110,12 +110,18 @@ class KeyboardPlayerPyGame(Player):
                 if event.key == pygame.K_r:
                     self.save_enable = False
                     print("Image saving disabled")
+                if event.key == pygame.K_t:
+                    self.save_enable = True
+                    print("Image saving enabled")
                 if event.key == pygame.K_l:
                     vis_nav_game.play(the_player=KeyboardPlayerPyGame())
                     print("Created new game instance")
                 if event.key == pygame.K_i:
                     self.explore_compute = True
                     print("Explore_compute enabled")
+                if event.key == pygame.K_o:
+                    self.explore_compute = False
+                    print("Explore_compute disabled")
                 if event.key in self.keymap:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
