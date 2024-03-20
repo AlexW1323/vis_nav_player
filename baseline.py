@@ -54,6 +54,7 @@ class KeyboardPlayerPyGame(Player):
 
         self.save_enable = True
         self.explore_compute = False
+        self.wall_check = True
 
         self.every_other = True
 
@@ -126,6 +127,9 @@ class KeyboardPlayerPyGame(Player):
                 if event.key == pygame.K_o:
                     self.explore_compute = False
                     print("Explore_compute disabled")
+                if event.key == pygame.K_m:
+                    self.wall_check = not self.wall_check
+                    print("Wall_check toggled")
                 if event.key in self.keymap and not self.turning:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
@@ -469,6 +473,9 @@ class KeyboardPlayerPyGame(Player):
                 b, g, r = fpv[bottom_middle_pixel[1], bottom_middle_pixel[0]]
 
                 self.valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
+
+                if not self.wall_check:
+                    self.valid_pixel = True
 
                 if self.last_act == Action.FORWARD and not self.valid_pixel:
                     self.last_act &= Action.IDLE
