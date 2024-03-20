@@ -56,6 +56,8 @@ class KeyboardPlayerPyGame(Player):
         self.explore_compute = False
 
         self.every_other = True
+
+        self.tolerance = 16
         
     def reset(self):
         # Reset the player state
@@ -465,13 +467,22 @@ class KeyboardPlayerPyGame(Player):
                 elif self.angle < -74:
                     self.angle += 148
                 
-                
+                height, width, _ = fpv.shape
+                bottom_middle_pixel = (width // 2, height - 5)
+                b, g, r = fpv[bottom_middle_pixel[1], bottom_middle_pixel[0]]
+
+                valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
+
+                if self.last_act == Action.FORWARD and not valid_pixel:
+                    self.last_act &= Action.IDLE
+
                 if keys_1[pygame.K_UP]:
-                    match self.orientation:
-                        case 'N': self.y += 1
-                        case 'W': self.x -= 1
-                        case 'S': self.y -= 1
-                        case 'E': self.x += 1
+                    if valid_pixel:
+                        match self.orientation:
+                            case 'N': self.y += 1
+                            case 'W': self.x -= 1
+                            case 'S': self.y -= 1
+                            case 'E': self.x += 1
                     print(f"{self.x}, {self.y}")
                 if keys_1[pygame.K_DOWN]:
                     match self.orientation:
