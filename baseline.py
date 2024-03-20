@@ -55,6 +55,7 @@ class KeyboardPlayerPyGame(Player):
         self.save_enable = True
         self.explore_compute = False
 
+        self.every_other = True
         
     def reset(self):
         # Reset the player state
@@ -456,6 +457,8 @@ class KeyboardPlayerPyGame(Player):
 
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
+                
+
                 keys_1 = pygame.key.get_pressed()
                 if self.angle > 74:
                     self.angle -= 148
@@ -519,7 +522,7 @@ class KeyboardPlayerPyGame(Player):
                 if not os.path.isdir(save_dir_full):
                     os.mkdir(save_dir_full)
                 # Save current FPV
-                if self.save_enable:
+                if self.save_enable and self.every_other:
                     cv2.imwrite(save_path, fpv)
 
                     # Get VLAD embedding for current FPV and add it to the database
@@ -527,6 +530,8 @@ class KeyboardPlayerPyGame(Player):
                     self.database.append(VLAD)
                     self.coordbook[self.count] = (self.x, self.y)
                     self.count = self.count + 1
+
+                self.every_other = not self.every_other
 
 
             # If in navigation stage
