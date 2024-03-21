@@ -110,23 +110,20 @@ class KeyboardPlayerPyGame(Player):
                     self.angle = 0
                     print("Reset angle to 0")
                 if event.key == pygame.K_r:
-                    self.save_enable = False
-                    print("Image saving disabled")
-                if event.key == pygame.K_t:
-                    self.save_enable = True
-                    print("Image saving enabled")
+                    self.save_enable = not self.save_enable
+                    if self.save_enable: print("Image saving enabled")
+                    else: self.save_enable: print("Image saving disabled") 
                 if event.key == pygame.K_l:
                     vis_nav_game.play(the_player=KeyboardPlayerPyGame())
                     print("Created new game instance")
                 if event.key == pygame.K_i:
-                    self.explore_compute = True
-                    print("Explore_compute enabled")
-                if event.key == pygame.K_o:
-                    self.explore_compute = False
-                    print("Explore_compute disabled")
+                    self.explore_compute = not self.explore_compute
+                    if self.explore_compute: print("Explore_compute enabled")
+                    else: print("Explore_compute disabled")
                 if event.key == pygame.K_m:
                     self.wall_check = not self.wall_check
-                    print("Wall_check toggled")
+                    if self.wall_check: print("Wall_check enabled")
+                    else: print("Wall_check disabled")
                 # Check if the pressed key is in the keymap
                 if event.key in self.keymap and not self.turning:
                     # If yes, bitwise OR the current action with the new one
