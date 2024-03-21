@@ -43,12 +43,16 @@ class KeyboardPlayerPyGame(Player):
         self.codebook = pickle.load(open("codebook.pkl", "rb"))
         # Initialize database for storing VLAD descriptors of FPV
         self.database = []
+
+        # Dictionary to store image coordinates
         self.coordbook = {}
 
+        # Position data
         self.x = 0
         self.y = 0
         self.angle = 0
 
+        # Additional state data
         self.turning = 0
         self.orientation = 'N'
 
@@ -101,14 +105,7 @@ class KeyboardPlayerPyGame(Player):
                 return Action.QUIT
             # Check if a key has been pressed
             if event.type == pygame.KEYDOWN:
-                # Check if the pressed key is in the keymap
-                # if event.key == pygame.K_d and self.turning == 0:
-                #     self.turning = 1
-                #     while self.angle != 37:
-                #         self.last_act |= Action.RIGHT
-                #         self.angle += 1
-                #     self.last_act &= Action.IDLE
-                #     self.turing = 0
+                # Miscillaneous keybinds
                 if event.key == pygame.K_p:
                     self.angle = 0
                     print("Reset angle to 0")
@@ -130,16 +127,18 @@ class KeyboardPlayerPyGame(Player):
                 if event.key == pygame.K_m:
                     self.wall_check = not self.wall_check
                     print("Wall_check toggled")
+                # Check if the pressed key is in the keymap
                 if event.key in self.keymap and not self.turning:
                     # If yes, bitwise OR the current action with the new one
                     # This allows for multiple actions to be combined into a single action
                     self.last_act |= self.keymap[event.key]
-                    # If a key is pressed that is not mapped to an action, then display target images
+                # Special cases for forward button
                 if event.key == pygame.K_UP and self._state[1] != Phase.NAVIGATION and not self.turning:
                     if self.valid_pixel:
                         self.last_act |= Action.FORWARD
                     else:
                         self.last_act &= Action.IDLE
+                # If a key is pressed that is not mapped to an action, then display target images
                 else:
                     self.show_target_images()
             # Check if a key has been released
@@ -352,6 +351,9 @@ class KeyboardPlayerPyGame(Player):
         print(f'Next View ID: {index+5} || Goal ID: {self.goal}')
 
     def turn(self, dest):
+        """
+        Helper function to turn 90 degrees
+        """
         if self.angle == dest:
             self.last_act &= Action.IDLE
             self.turning = 0
@@ -366,6 +368,9 @@ class KeyboardPlayerPyGame(Player):
             self.last_act |= Action.LEFT
 
     def shortest_path(self, points, start, end, jump_threshold):
+        """
+        Find shortest path from a start point to end point
+        """
         def euclidean_distance(p1, p2):
             return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
@@ -404,6 +409,9 @@ class KeyboardPlayerPyGame(Player):
 
 
     def plot_coordinates(self, highlight_index=None):
+        """
+        Plot coordinates measured from maze
+        """
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
         distance, path = self.shortest_path(list(self.coordbook.values()), (0, 0), \
@@ -461,17 +469,17 @@ class KeyboardPlayerPyGame(Player):
                 # TODO: could you employ any technique to strategically perform exploration instead of random exploration
                 # to improve performance (reach target location faster)?
                 
-
+                # Lets self.angle wrap around
                 keys_1 = pygame.key.get_pressed()
                 if self.angle > 74:
                     self.angle -= 148
                 elif self.angle < -74:
                     self.angle += 148
                 
+                # Check current view if close to wall
                 height, width, _ = fpv.shape
                 bottom_middle_pixel = (width // 2, height - 20)
                 b, g, r = fpv[bottom_middle_pixel[1], bottom_middle_pixel[0]]
-
                 self.valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
 
                 if not self.wall_check:
@@ -480,6 +488,7 @@ class KeyboardPlayerPyGame(Player):
                 if self.last_act == Action.FORWARD and not self.valid_pixel:
                     self.last_act &= Action.IDLE
 
+                # Moving forward
                 if keys_1[pygame.K_UP] and not self.turning:
                     if self.valid_pixel:
                         match self.orientation:
@@ -488,6 +497,7 @@ class KeyboardPlayerPyGame(Player):
                             case 'S': self.y -= 1
                             case 'E': self.x += 1
                     print(f"{self.x}, {self.y}")
+                # Moving backward
                 if keys_1[pygame.K_DOWN] and not self.turning:
                     match self.orientation:
                         case 'N': self.y -= 1
@@ -495,12 +505,15 @@ class KeyboardPlayerPyGame(Player):
                         case 'S': self.y += 1
                         case 'E': self.x -= 1
                     print(f"{self.x}, {self.y}")
+                # Turning right
                 if keys_1[pygame.K_RIGHT]:
                     self.angle += 1
                     print(f"{self.angle}")
+                # Turning left
                 if keys_1[pygame.K_LEFT]:
                     self.angle -= 1
                     print(f"{self.angle}")
+                # 90 degree turns only
                 if self.turning == 0:
                     if keys_1[pygame.K_w]:
                         self.turning = 1
@@ -514,12 +527,14 @@ class KeyboardPlayerPyGame(Player):
                     elif keys_1[pygame.K_d]:
                         self.turning = 4
                         self.orientation = 'E'
+                # Destination angles for 90 degree turning
                 match self.turning:
                     case 1: self.turn(0)
                     case 2: self.turn(-37)
                     case 3: self.turn(74)
                     case 4: self.turn(37)
                     
+                # Compute KMeans and BallTree
                 if keys_1[pygame.K_u] and self.explore_compute:
                     sift_descriptors = self.compute_sift_features()
 
