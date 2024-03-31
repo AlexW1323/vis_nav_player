@@ -109,10 +109,12 @@ class KeyboardPlayerPyGame(Player):
                 if event.key == pygame.K_p:
                     self.angle = 0
                     print("Reset angle to 0")
+                if event.key == pygame.K_m:
+                    self.plot_base_map()
                 if event.key == pygame.K_r:
                     self.save_enable = not self.save_enable
                     if self.save_enable: print("Image saving enabled")
-                    else: self.save_enable: print("Image saving disabled") 
+                    else: print("Image saving disabled") 
                 if event.key == pygame.K_l:
                     vis_nav_game.play(the_player=KeyboardPlayerPyGame())
                     print("Created new game instance")
@@ -120,7 +122,7 @@ class KeyboardPlayerPyGame(Player):
                     self.explore_compute = not self.explore_compute
                     if self.explore_compute: print("Explore_compute enabled")
                     else: print("Explore_compute disabled")
-                if event.key == pygame.K_m:
+                if event.key == pygame.K_n:
                     self.wall_check = not self.wall_check
                     if self.wall_check: print("Wall_check enabled")
                     else: print("Wall_check disabled")
@@ -208,8 +210,11 @@ class KeyboardPlayerPyGame(Player):
         """
         path = 'map.jpg'
         img = cv2.imread(path)
-        cv2.imshow(window_name, img)
-        cv2.waitKey(1)
+        if img is not None:
+            cv2.imshow(window_name, img)
+            cv2.waitKey(1)
+        else:
+            print('map failed to read')
 
     def compute_sift_features(self):
         """
@@ -426,6 +431,26 @@ class KeyboardPlayerPyGame(Player):
         plt.title('Indexed Coordinates Plot')
         plt.grid(True)
         plt.savefig('map.jpg')
+    
+    def plot_base_map(self):
+        fig, ax = plt.subplots()
+        ax.set_aspect('equal')
+        for index, (x, y) in self.coordbook.items():
+            color = 'gs'
+            ax.plot(x, y, color, markersize=5)
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Indexed Coordinates Plot')
+        plt.grid(True)
+        plt.savefig('base_map.jpg')
+        path = 'base_map.jpg'
+        img = cv2.imread(path)
+        if img is not None:
+            cv2.imshow('Base Map', img)
+            cv2.waitKey(1)
+        else:
+            print('map failed to read')
+
 
     def see(self, fpv):
         """
