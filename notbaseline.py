@@ -106,22 +106,28 @@ class KeyboardPlayerPyGame(Player):
             # Check if a key has been pressed
             if event.type == pygame.KEYDOWN:
                 # Miscillaneous keybinds
+                # Reset angle to 0
                 if event.key == pygame.K_p:
                     self.angle = 0
                     print("Reset angle to 0")
+                # Plot map during exploration
                 if event.key == pygame.K_m:
                     self.plot_base_map()
+                # Toggle image saving
                 if event.key == pygame.K_r:
                     self.save_enable = not self.save_enable
                     if self.save_enable: print("Image saving enabled")
                     else: print("Image saving disabled") 
+                # Create new game instance? on top of the current one which should never be done why would you want to do this
                 if event.key == pygame.K_l:
                     vis_nav_game.play(the_player=KeyboardPlayerPyGame())
                     print("Created new game instance")
+                # Toggle computing kmeans and ball tree during exploration
                 if event.key == pygame.K_i:
                     self.explore_compute = not self.explore_compute
                     if self.explore_compute: print("Explore_compute enabled")
                     else: print("Explore_compute disabled")
+                # Toggle wall checking
                 if event.key == pygame.K_n:
                     self.wall_check = not self.wall_check
                     if self.wall_check: print("Wall_check enabled")
@@ -412,7 +418,7 @@ class KeyboardPlayerPyGame(Player):
 
     def plot_coordinates(self, highlight_index=None):
         """
-        Plot coordinates measured from maze
+        Plot coordinates measured from maze for navigation use
         """
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
@@ -433,6 +439,9 @@ class KeyboardPlayerPyGame(Player):
         plt.savefig('map.jpg')
     
     def plot_base_map(self):
+        """
+        Plot coordinates measured from maze for exploration use and displays map
+        """
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
         for index, (x, y) in self.coordbook.items():
@@ -500,12 +509,14 @@ class KeyboardPlayerPyGame(Player):
                 
                 # Check current view if close to wall
                 height, width, _ = fpv.shape
-                bottom_middle_pixel = (width // 2, height - 20)
-                b, g, r = fpv[bottom_middle_pixel[1], bottom_middle_pixel[0]]
-                self.valid_pixel = (b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))
-
-                if not self.wall_check:
-                    self.valid_pixel = True
+                pixels = []
+                for i in range(-10, 10):
+                    pixels.append(((width // 2) + i, height - 16))
+                self.valid_pixel = True
+                if self.wall_check:
+                    for pixel in pixels:
+                        b, g, r = fpv[pixel[1], pixel[0]]
+                        self.valid_pixel = ((b >= 255 - self.tolerance and g >= 255 - self.tolerance and r >= 255 - self.tolerance) or ((b <= 221 + self.tolerance and b >= 221 - self.tolerance) and (g <= 185 + self.tolerance and g >= 185 - self.tolerance) and (r <= 166 + self.tolerance and r >= 166 - self.tolerance))) and self.valid_pixel
 
                 if self.last_act == Action.FORWARD and not self.valid_pixel:
                     self.last_act &= Action.IDLE
