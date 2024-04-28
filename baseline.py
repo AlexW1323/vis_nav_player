@@ -317,7 +317,7 @@ class KeyboardPlayerPyGame(Player):
                 # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
                 # TODO: try tuning the function parameters for better performance
-                codebook = KMeans(n_clusters = 5, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                codebook = KMeans(n_clusters = 30, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
                 pickle.dump(codebook, open("codebook.pkl", "wb"))
 
                 # Build a BallTree for fast nearest neighbor search
@@ -447,6 +447,7 @@ class KeyboardPlayerPyGame(Player):
         for index, (x, y) in self.coordbook.items():
             color = 'gs'
             ax.plot(x, y, color, markersize=5)
+        ax.plot(self.x, self.y, 'bo', markersize=7)
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
         plt.title('Indexed Coordinates Plot')
