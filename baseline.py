@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import pickle
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.neighbors import BallTree
 import math
 import heapq
@@ -46,6 +46,13 @@ class KeyboardPlayerPyGame(Player):
 
         # Dictionary to store image coordinates
         self.coordbook = {}
+
+        self.fig, self.ax = plt.subplot()
+        self.ax.set_aspect('equal')
+        plt.xlabel('X-axis')
+        plt.ylabel('Y-axis')
+        plt.title('Indexed Coordinates Plot')
+        plt.grid(True)
 
         # Position data
         self.x = 0
@@ -317,7 +324,7 @@ class KeyboardPlayerPyGame(Player):
                 # This fits the KMeans model to the SIFT descriptors, clustering them into n_clusters clusters based on their feature vectors
 
                 # TODO: try tuning the function parameters for better performance
-                codebook = KMeans(n_clusters = 30, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                codebook = MiniBatchKMeans(n_clusters = 30, init='k-means++', n_init=10, verbose=1, batch_size=256).fit(sift_descriptors)
                 pickle.dump(codebook, open("codebook.pkl", "wb"))
 
                 # Build a BallTree for fast nearest neighbor search
@@ -572,7 +579,7 @@ class KeyboardPlayerPyGame(Player):
                 if keys_1[pygame.K_u] and self.explore_compute:
                     sift_descriptors = self.compute_sift_features()
 
-                    codebook = KMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1).fit(sift_descriptors)
+                    codebook = MiniBatchKMeans(n_clusters = 20, init='k-means++', n_init=10, verbose=1, batch_size=256).fit(sift_descriptors)
                     pickle.dump(codebook, open("codebook.pkl", "wb"))
 
                     tree = BallTree(self.database, leaf_size=10)
@@ -593,6 +600,7 @@ class KeyboardPlayerPyGame(Player):
                     VLAD = self.get_VLAD(self.fpv)
                     self.database.append(VLAD)
                     self.coordbook[self.count] = (self.x, self.y)
+                    self.ax.plot(self.x, self.y, 'ro', markersize=7)
                     self.count = self.count + 1
 
                 self.every_other = not self.every_other
